@@ -7,6 +7,8 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/glad)
 include_directories(${CMAKE_SOURCE_DIR}/Shaders)
 include_directories(${CMAKE_SOURCE_DIR}/stb)
+include_directories(${CMAKE_SOURCE_DIR}/imgui)
+include_directories(${CMAKE_SOURCE_DIR}/imgui/backends)
 include_directories(/opt/homebrew/include)
 
 # Add GLM
@@ -34,6 +36,12 @@ set(SOURCES
         include/Chunk.h
         src/Planet.cpp
         include/Planet.h
+        imgui/imgui.cpp
+        imgui/imgui_draw.cpp
+        imgui/imgui_tables.cpp
+        imgui/imgui_widgets.cpp
+        imgui/backends/imgui_impl_glfw.cpp
+        imgui/backends/imgui_impl_opengl3.cpp
 )
 
 # Executable target

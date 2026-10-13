@@ -38,4 +38,7 @@ Makefile
 
 # Other
 *.log
-*.tmp 
+*.tmp
+
+# Dear ImGui runtime layout cache
+imgui.ini 

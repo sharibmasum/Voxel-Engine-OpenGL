@@ -39,6 +39,14 @@ public:
     GLfloat getXChange();
     GLfloat getYChange();
 
+    // Call after switching GLFW_CURSOR mode so the next mouse delta doesn't
+    // include the jump caused by the OS warping/releasing the cursor.
+    void resetMouseDelta() {
+        mouseFirstMoved = true;
+        xChange = 0.0f;
+        yChange = 0.0f;
+    }
+
 
     void swapBuffers() {
         glfwSwapBuffers(mainWindow);

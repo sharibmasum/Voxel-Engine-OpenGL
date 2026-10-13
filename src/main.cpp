@@ -22,6 +22,10 @@
 #include "Chunk.h"
 #include "Planet.h"
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 
 
 std::vector<Mesh *> meshList;
@@ -130,6 +134,9 @@ void createShader() {
 bool wireframe = false;
 float fpsTimer = 0.0f;
 int frameCount = 0;
+int displayedFps = 0;
+
+bool cursorFree = false; // true while Caps Lock is held, releasing the mouse for the UI
 
 
 int main() {
@@ -142,6 +149,15 @@ int main() {
     createShader();
 
     camera = Camera(cameraPosition, glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 15.0f, 0.05f);
+
+    // ImGui must be set up after the GLFW window/callbacks exist (Window::initalize() installs
+    // the camera's key/mouse callbacks first) so ImGui_ImplGlfw chains onto them instead of
+    // replacing them.
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(mainWindow.getWindow(), true);
+    ImGui_ImplOpenGL3_Init("#version 150");
 
     brickTexture = Texture("Textures/brick.png");
     brickTexture.loadTexture();
@@ -166,6 +182,7 @@ int main() {
         frameCount++;
 
         if (fpsTimer >= 1.0f) {
+            displayedFps = frameCount;
             std::cout << "FPS: " << frameCount << std::endl;
             fpsTimer = 0.0f;
             frameCount = 0;
@@ -173,15 +190,42 @@ int main() {
 
 
         glfwPollEvents();
-        camera.keyControl(mainWindow.getsKeys(), deltaTime);
-        camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange());
+
+        // Hold Caps Lock to release the cursor and use the UI; release it to go back to flying.
+        bool capsHeld = mainWindow.getsKeys()[GLFW_KEY_CAPS_LOCK];
+        if (capsHeld != cursorFree) {
+            cursorFree = capsHeld;
+            glfwSetInputMode(mainWindow.getWindow(), GLFW_CURSOR,
+                              cursorFree ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+            mainWindow.resetMouseDelta(); // avoid a camera snap from the cursor warp/jump
+        }
+
+        if (!cursorFree) {
+            camera.keyControl(mainWindow.getsKeys(), deltaTime);
+            camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange());
+        }
 
         glm::mat4 projection = glm::perspective(45.0f, (GLfloat) mainWindow.getBufferWidth() /
-                                                       (GLfloat) mainWindow.getBufferHeight(), 0.1f, 100.f);
+                                                       (GLfloat) mainWindow.getBufferHeight(), 0.1f, 400.f);
 
         glClearColor(94.0f / 250.0f, 198.0f / 250.0f, 242.0f / 250.f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         /// /  / / / // / / / / / / // / / / / /////
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Debug");
+        ImGui::Text("FPS: %d (%.2f ms/frame)", displayedFps, deltaTime * 1000.0f);
+        ImGui::Text("Chunks loaded: %d  pending: %d  culled: %d", planet->getLoadedChunkCount(), planet->getPendingChunkCount(), planet->getCulledChunkCount());
+        int renderDistance = planet->getRenderDistance();
+        if (ImGui::SliderInt("Render Distance", &renderDistance, 1, 32)) {
+            planet->setRenderDistance(renderDistance);
+        }
+        ImGui::TextDisabled("Hold Caps Lock to free the cursor");
+        ImGui::End();
 
 
         static bool fWasPressed = false;
@@ -219,23 +263,35 @@ int main() {
 
         // chunk shit test
 
+        glm::mat4 view = camera.calculateViewMatrix();
+
         glm::mat4 model(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
         glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
+        glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(view));
         dirtTexture.useTexture();
 
         dullMaterial.useMaterial(uniformSpecularIntensity, uniformShininess);
 
-        planet->render(uniformModel);
+        glm::vec3 camPos = camera.getCameraPosition();
+        planet->update(camPos.x, camPos.y, camPos.z, uniformModel);
+        planet->render(uniformModel, projection, view);
 
 
 
         glUseProgram(0);
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         mainWindow.swapBuffers();
 
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     return 0;
 }

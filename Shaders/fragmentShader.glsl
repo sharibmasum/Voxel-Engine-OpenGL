@@ -5,6 +5,7 @@ in vec4 vCol;
 in vec2 texCoord0;
 in vec3 Normal;
 in vec3 fragPos;
+in vec2 uRangeOut;
 
 struct directionalLight {
     vec3 colour;
@@ -47,6 +48,11 @@ void main () {
         }
     }
 
-    FragColor = texture(theTexture, texCoord0) * (ambientColour + diffuseColour + specularColor);
+    // texCoord0 is tile-space (repeats every 1.0 unit per block) for greedy-merged quads;
+    // fract() wraps it and mix() maps it back into this face's atlas sub-rectangle.
+    vec2 wrapped = fract(texCoord0);
+    vec2 atlasUV = vec2(mix(uRangeOut.x, uRangeOut.y, wrapped.x), wrapped.y);
+
+    FragColor = texture(theTexture, atlasUV) * (ambientColour + diffuseColour + specularColor);
 
 }

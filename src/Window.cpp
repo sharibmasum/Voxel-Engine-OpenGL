@@ -67,7 +67,9 @@ int Window::initalize() {
     }
 
     glEnable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);  // Disable face culling to see all triangles
+    glEnable(GL_CULL_FACE); // chunk meshes use consistent CCW winding; cull back faces for free
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
 
     glViewport(0,0, bufferWidth, bufferHeight);
 
